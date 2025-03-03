@@ -1,132 +1,136 @@
 import asyncio
-import json
-import os
+import sqlite3
+from fastapi import FastAPI, Request, HTTPException, Depends
+import uvicorn
+import aiohttp
+from fastapi.security import APIKeyHeader
 
-PEERS_FILE = "peers.json"  # Stores known peers
+DB_FILE = "nodes.db"
+
+app = FastAPI()
+api_key_header = APIKeyHeader(name="X-API-Key")
+
+# Initialize database
+def init_db():
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS api_keys (
+            api_key TEXT PRIMARY KEY,
+            email TEXT NOT NULL
+        )
+    """)
+    conn.commit()
+
+    # Check if the table is empty
+    cursor.execute("SELECT COUNT(*) FROM api_keys")
+    if cursor.fetchone()[0] == 0:
+        api_key = input("Enter API key for bootstrap node: ")
+        email = input("Enter email for bootstrap node: ")
+        cursor.execute("INSERT INTO api_keys (api_key, email) VALUES (?, ?)", (api_key, email))
+        conn.commit()
+        print("✅ API key registered successfully")
+    
+    conn.close()
+
+init_db()
+
+def get_api_keys():
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    cursor.execute("SELECT api_key FROM api_keys")
+    keys = {row[0] for row in cursor.fetchall()}
+    conn.close()
+    return keys
 
 class Node:
-    def __init__(self, host="127.0.0.1", port=5000, bootstrap_host=None, bootstrap_port=None):
+    def __init__(self, host="localhost", port=5000, bootstrap_host=None, bootstrap_port=None, api_key="0.0.0"):
         self.host = host
         self.port = port
-        self.peers = set()  # Stores active peer connections
         self.bootstrap_host = bootstrap_host
         self.bootstrap_port = bootstrap_port
+        self.api_key = api_key
+        self.api_keys = get_api_keys()
 
-        # Load saved peers from file
-        self.load_peers()
+    async def connect_to_bootstrap(self):
+        """Connects to the bootstrap node only using HTTP."""
+        if self.api_key not in self.api_keys:
+            print("❌ Connection refused: Invalid API key")
+            return
 
-    def load_peers(self):
-        """Load known peers from a file, converting lists to tuples."""
-        if os.path.exists(PEERS_FILE):
-            with open(PEERS_FILE, "r") as f:
-                peer_list = json.load(f)  # Load as list
-            self.peers = {tuple(peer) for peer in peer_list}  # Convert to set of tuples
-
-
-
-    def save_peers(self):
-        """Save known peers to a file."""
-        with open(PEERS_FILE, "w") as f:
-            json.dump(list(self.peers), f)
-
-    async def handle_connection(self, reader, writer):
-        """Handles incoming peer connections and peer discovery."""
-        addr = writer.get_extra_info('peername')
-        print(f"🔗 Connected with {addr}")
-
-        self.peers.add(addr)  # Save new peer
-        self.save_peers()
-
-        # Send list of known peers to new node
-        writer.write(json.dumps(list(self.peers)).encode())
-        await writer.drain()
-
+        if not self.bootstrap_host or not self.bootstrap_port:
+            print("⚠️ No bootstrap node specified. Skipping connection.")
+            return
+        
+        url = f"http://{self.bootstrap_host}:{self.bootstrap_port}/connect"
         try:
-            while True:
-                data = await reader.read(100)
-                if not data:
-                    break  # Connection closed
-                message = data.decode()
-                print(f"📩 Received from {addr}: {message}")
-
-                # Echo back
-                writer.write(f"✅ ACK: {message}".encode())
-                await writer.drain()
-        except asyncio.CancelledError:
-            pass
-        finally:
-            print(f"❌ Connection closed: {addr}")
-            self.peers.discard(addr)
-            self.save_peers()
-            writer.close()
-            await writer.wait_closed()
-
-    async def start_server(self):
-        """Starts the server for incoming connections."""
-        server = await asyncio.start_server(self.handle_connection, self.host, self.port)
-        print(f"🚀 Node started on {self.host}:{self.port}")
-        async with server:
-            await server.serve_forever()
-
-    async def connect_to_peer(self, peer_host, peer_port):
-        """Connects to another peer."""
-        try:
-            reader, writer = await asyncio.open_connection(peer_host, peer_port)
-            addr = writer.get_extra_info('peername')
-            print(f"✅ Connected to peer {peer_host}:{peer_port}")
-
-            self.peers.add((peer_host, peer_port))
-            self.save_peers()
-
-            # Receive list of known peers
-            # Receive list of known peers
-            data = await reader.read(4096)
-            peer_list = json.loads(data.decode())
-
-            #   Convert peer list from list -> tuple and add to the set
-            for peer in peer_list:
-                self.peers.add(tuple(peer))  # Ensure we store peers as (host, port) tuples
-
-            self.save_peers()  # Save updated peers list
-
-
-            while True:
-                message = input(f"Type message for {peer_host}:{peer_port} > ")
-                writer.write(message.encode())
-                await writer.drain()
-
-                data = await reader.read(100)
-                print(f"📩 Response from peer: {data.decode()}")
-
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url, headers={"X-API-Key": self.api_key}) as response:
+                    if response.status == 200:
+                        print(f"✅ Connected to bootstrap node {self.bootstrap_host}:{self.bootstrap_port}")
         except Exception as e:
-            print(f"❌ Failed to connect to peer {peer_host}:{peer_port} - {e}")
+            print(f"❌ Failed to connect to bootstrap node {self.bootstrap_host}:{self.bootstrap_port} - {e}")
 
-    async def bootstrap_connect(self):
-        """If the node is not a bootstrap node, connect to the bootstrap node."""
-        if self.bootstrap_host and self.bootstrap_port:
-            await self.connect_to_peer(self.bootstrap_host, self.bootstrap_port)
+def get_api_key(api_key: str = Depends(api_key_header)):
+    if api_key not in get_api_keys():
+        raise HTTPException(status_code=401, detail="Invalid API key")
+    return api_key
 
-    async def start(self):
-        """Start server and connect to bootstrap node if available."""
-        server_task = asyncio.create_task(self.start_server())
+@app.get("/connect")
+async def handle_connection(request: Request, api_key: str = Depends(get_api_key)):
+    """Handles incoming HTTP node connections."""
+    if node.bootstrap_host is not None:
+        raise HTTPException(status_code=403, detail="Only connections to the bootstrap node are allowed")
+    
+    print(f"🔗 Connected with {request.client.host}")
+    return {"message": "Connected successfully"}
 
-        # If bootstrap node is provided, connect to it
-        if self.bootstrap_host and self.bootstrap_port:
-            await asyncio.sleep(1)  # Give server time to start
-            await self.bootstrap_connect()
+@app.post("/message")
+async def send_message(request: Request, api_key: str = Depends(get_api_key)):
+    """Handles message exchange between nodes."""
+    if request.client.host != node.bootstrap_host:
+        raise HTTPException(status_code=403, detail="Only the bootstrap node can receive messages")
+    
+    data = await request.json()
+    message = data.get("message", "")
+    print(f"📩 Received from {request.client.host}: {message}")
+    return {"response": f"Host has received your message: {message}"}
 
-        await server_task  # Keep server running
+@app.post("/register")
+async def register_node(request: Request):
+    """Registers a new node with an API key and email."""
+    data = await request.json()
+    api_key = data.get("api_key")
+    email = data.get("email")
+    
+    if not api_key or not email:
+        raise HTTPException(status_code=400, detail="Missing API key or email")
+    
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    cursor.execute("INSERT INTO api_keys (api_key, email) VALUES (?, ?)", (api_key, email))
+    conn.commit()
+    conn.close()
+    
+    return {"message": "Node registered successfully"}
 
 if __name__ == "__main__":
     import sys
-
-    if len(sys.argv) < 2:
-        print("Usage: python node.py <port> [bootstrap_host bootstrap_port]")
+    
+    if len(sys.argv) == 2 and sys.argv[1] == "start_node":
+        port = 8000
+        api_key = "0.0.0"
+        bootstrap_host = None
+        bootstrap_port = None
+    elif len(sys.argv) >= 3:
+        port = int(sys.argv[1])
+        api_key = sys.argv[2]
+        bootstrap_host = sys.argv[3] if len(sys.argv) > 3 else None
+        bootstrap_port = int(sys.argv[4]) if len(sys.argv) > 4 else None
+    else:
+        print("Usage: python node.py <port> <api_key> [bootstrap_host bootstrap_port] or python node.py start_node")
         sys.exit(1)
 
-    port = int(sys.argv[1])
-    bootstrap_host = sys.argv[2] if len(sys.argv) > 2 else None
-    bootstrap_port = int(sys.argv[3]) if len(sys.argv) > 3 else None
-
-    node = Node(port=port, bootstrap_host=bootstrap_host, bootstrap_port=bootstrap_port)
-    asyncio.run(node.start())
+    node = Node(port=port, bootstrap_host=bootstrap_host, bootstrap_port=bootstrap_port, api_key=api_key)
+    asyncio.run(node.connect_to_bootstrap())
+    uvicorn.run(app, host="0.0.0.0", port=port)
