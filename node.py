@@ -1,11 +1,14 @@
 import asyncio
+import json
+import os
 import sqlite3
 from fastapi import FastAPI, Request, HTTPException, Depends
 import uvicorn
 import aiohttp
+from typing import Optional
 from fastapi.security import APIKeyHeader
 
-DB_FILE = "nodes.db"
+DB_FILE = "nodes.db"  # SQLite database file
 
 app = FastAPI()
 api_key_header = APIKeyHeader(name="X-API-Key")
@@ -79,7 +82,7 @@ def get_api_key(api_key: str = Depends(api_key_header)):
 @app.get("/connect")
 async def handle_connection(request: Request, api_key: str = Depends(get_api_key)):
     """Handles incoming HTTP node connections."""
-    if node.bootstrap_host is not None:
+    if request.client.host != node.bootstrap_host:
         raise HTTPException(status_code=403, detail="Only connections to the bootstrap node are allowed")
     
     print(f"🔗 Connected with {request.client.host}")
@@ -118,7 +121,7 @@ if __name__ == "__main__":
     import sys
     
     if len(sys.argv) == 2 and sys.argv[1] == "start_node":
-        port = 8000
+        port = int(os.getenv("PORT", 8000))  # Use Render's assigned port
         api_key = "0.0.0"
         bootstrap_host = None
         bootstrap_port = None
