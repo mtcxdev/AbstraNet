@@ -9,7 +9,7 @@ from typing import Optional
 from fastapi.security import APIKeyHeader
 
 DB_FILE = "nodes.db"  # SQLite database file
-PORT = 8000  # Enforce a single port for all nodes
+PORT = 10000  # Enforce a single port for all nodes
 
 app = FastAPI()
 api_key_header = APIKeyHeader(name="X-API-Key")
