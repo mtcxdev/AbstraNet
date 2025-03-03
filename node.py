@@ -9,6 +9,7 @@ from typing import Optional
 from fastapi.security import APIKeyHeader
 
 DB_FILE = "nodes.db"  # SQLite database file
+PORT = 8000  # Enforce a single port for all nodes
 
 app = FastAPI()
 api_key_header = APIKeyHeader(name="X-API-Key")
@@ -47,53 +48,44 @@ def get_api_keys():
     return keys
 
 class Node:
-    def __init__(self, host="localhost", port=5000, bootstrap_host=None, bootstrap_port=None, api_key="0.0.0"):
-        self.host = host
-        self.port = port
-        self.bootstrap_host = bootstrap_host
-        self.bootstrap_port = bootstrap_port
+    def __init__(self, api_key="0.0.0", bootstrap_host=None):
         self.api_key = api_key
+        self.bootstrap_host = bootstrap_host
         self.api_keys = get_api_keys()
 
-    async def connect_to_bootstrap(self):
-        """Connects to the bootstrap node only using HTTP."""
+    async def connect_to_network(self):
+        """Connects to the network using HTTP."""
         if self.api_key not in self.api_keys:
             print("❌ Connection refused: Invalid API key")
             return
 
-        if not self.bootstrap_host or not self.bootstrap_port:
+        if not self.bootstrap_host:
             print("⚠️ No bootstrap node specified. Skipping connection.")
             return
         
-        url = f"http://{self.bootstrap_host}:{self.bootstrap_port}/connect"
+        url = f"http://{self.bootstrap_host}:{PORT}/connect"
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.get(url, headers={"X-API-Key": self.api_key}) as response:
                     if response.status == 200:
-                        print(f"✅ Connected to bootstrap node {self.bootstrap_host}:{self.bootstrap_port}")
+                        print(f"✅ Connected to network via {self.bootstrap_host}:{PORT}")
         except Exception as e:
-            print(f"❌ Failed to connect to bootstrap node {self.bootstrap_host}:{self.bootstrap_port} - {e}")
+            print(f"❌ Failed to connect to network {self.bootstrap_host}:{PORT} - {e}")
 
 def get_api_key(api_key: str = Depends(api_key_header)):
     if api_key not in get_api_keys():
         raise HTTPException(status_code=401, detail="Invalid API key")
     return api_key
 
-@app.get("/connect")
+@app.get("/")
 async def handle_connection(request: Request, api_key: str = Depends(get_api_key)):
     """Handles incoming HTTP node connections."""
-    if request.client.host != node.bootstrap_host:
-        raise HTTPException(status_code=403, detail="Only connections to the bootstrap node are allowed")
-    
     print(f"🔗 Connected with {request.client.host}")
     return {"message": "Connected successfully"}
 
 @app.post("/message")
 async def send_message(request: Request, api_key: str = Depends(get_api_key)):
     """Handles message exchange between nodes."""
-    if request.client.host != node.bootstrap_host:
-        raise HTTPException(status_code=403, detail="Only the bootstrap node can receive messages")
-    
     data = await request.json()
     message = data.get("message", "")
     print(f"📩 Received from {request.client.host}: {message}")
@@ -121,19 +113,15 @@ if __name__ == "__main__":
     import sys
     
     if len(sys.argv) == 2 and sys.argv[1] == "start_node":
-        port = int(os.getenv("PORT", 8000))  # Use Render's assigned port
         api_key = "0.0.0"
         bootstrap_host = None
-        bootstrap_port = None
     elif len(sys.argv) >= 3:
-        port = int(sys.argv[1])
-        api_key = sys.argv[2]
-        bootstrap_host = sys.argv[3] if len(sys.argv) > 3 else None
-        bootstrap_port = int(sys.argv[4]) if len(sys.argv) > 4 else None
+        api_key = sys.argv[1]
+        bootstrap_host = sys.argv[2] if len(sys.argv) > 2 else None
     else:
-        print("Usage: python node.py <port> <api_key> [bootstrap_host bootstrap_port] or python node.py start_node")
+        print("Usage: python node.py <api_key> [bootstrap_host] or python node.py start_node")
         sys.exit(1)
 
-    node = Node(port=port, bootstrap_host=bootstrap_host, bootstrap_port=bootstrap_port, api_key=api_key)
-    asyncio.run(node.connect_to_bootstrap())
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    node = Node(api_key=api_key, bootstrap_host=bootstrap_host)
+    asyncio.run(node.connect_to_network())
+    uvicorn.run(app, host="0.0.0.0", port=PORT)
