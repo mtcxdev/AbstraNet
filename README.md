@@ -1,45 +1,43 @@
- ---
+---
 
 # **AbstraNet**  
-_A Decentralized Content Delivery Network on Hedera_  
+_A Restaking-Powered Decentralized Content Delivery Network on Swellchain_  
 
-![AbstraNet Logo](https://via.placeholder.com/800x200?text=AbstraNet+Banner)  
+### **Revolutionizing Web3 Content Delivery with Restaking, Security & Decentralization**  
 
-### **Revolutionizing Web3 Content Delivery with Decentralization, Security & Speed**  
-
-[![Hedera](https://img.shields.io/badge/Built%20on-Hedera-0A94FF?style=flat-square&logo=hedera)](https://hedera.com)  
+[![Swellchain](https://img.shields.io/badge/Built%20on-Swellchain-0A94FF?style=flat-square&logo=ethereum)](https://swellnetwork.io)  
 [![License](https://img.shields.io/github/license/mtcxdev/AbstraNet?style=flat-square)](LICENSE)  
 [![Contributors](https://img.shields.io/github/contributors/mtcxdev/AbstraNet?style=flat-square)](https://github.com/mtcxdev/AbstraNet/graphs/contributors)  
 
 ---
 
 ## 📖 **Overview**  
-AbstraNet is a **decentralized content delivery network (dCDN)** built on **Hedera Hashgraph**. It empowers **individuals, dApps, and enterprises** with:  
+AbstraNet is a **restaking-powered decentralized content delivery network (dCDN)** built on **Swellchain**. It enables **validators, node operators, and stakers** to monetize their **bandwidth, compute power, and storage** while ensuring **high-performance, censorship-resistant content delivery**.  
 
-✅ **Low-latency content delivery**  
-✅ **Zero-knowledge proof security**  
-✅ **Censorship resistance**  
-✅ **Decentralized storage & file chunking**  
-✅ **Income opportunities for node operators**  
+✅ **Restaking-powered validator incentives**  
+✅ **Decentralized storage with IPFS integration**  
+✅ **High-speed, censorship-resistant content delivery**  
+✅ **Smart contract-powered payments & governance**  
+✅ **Earn rewards through Swellchain’s staking model**  
 
 ---
 
 ## 🛠️ **Core Features**  
-### 🔹 **Decentralized Storage**  
-- Files are **split into chunks** and stored across independent nodes.  
-- Nodes **earn rewards** for providing storage.  
+### 🔹 **Restaking-Powered Nodes**  
+- Operators **stake SWELL/swETH** to participate in content delivery.  
+- Validators earn additional yield through **content distribution incentives**.  
 
-### 🔹 **Smart Contract Integration**  
-- Tracks **chunk locations & verification**.  
-- Automates **payments** for storage & retrieval.  
+### 🔹 **Decentralized Storage (IPFS Integration)**  
+- Files are **split into chunks** and stored across **restaked nodes**.  
+- Uses **IPFS** for **secure, censorship-resistant content distribution**.  
 
-### 🔹 **Node Participation & Rewards**  
-- Anyone can **host a node** and monetize **unused bandwidth & storage**.  
-- Nodes **must stay online** to earn rewards.  
+### 🔹 **Smart Contract Governance & Payments**  
+- Tracks **node participation & content verification**.  
+- Automates **payments & stake reallocation** via **Swell-powered staking models**.  
 
-### 🔹 **Web3 & Hedera Integration**  
-- Built on **Hedera Hashgraph** for **low fees & high throughput**.  
-- Uses **HashConnect** for secure **wallet authentication & transactions**.  
+### 🔹 **DeFi & AI Integrations**  
+- Supports **Swell-powered lending & staking derivatives**.  
+- AI workloads distributed across **restaked nodes** for decentralized compute power.  
 
 ---
 
@@ -47,63 +45,28 @@ AbstraNet is a **decentralized content delivery network (dCDN)** built on **Hede
 ```mermaid
 graph TD;
     User -->|Requests Content| Frontend(React dApp)
-    Frontend -->|Authenticates with| Hedera(HashConnect)
-    Frontend -->|Fetches Metadata| Backend(Django API)
+    Frontend -->|Authenticates with| Swellchain(Staking & Governance)
+    Frontend -->|Fetches Metadata| Backend(Node API)
     Backend -->|Manages Storage| Node(AbstraNet Node Software)
-    Node -->|Reports Status| SmartContract(Hedera SC)
-    SmartContract -->|Handles Payments| Wallet(Hedera Wallet)
+    Node -->|Reports Status| SmartContract(Swell Smart Contract)
+    SmartContract -->|Handles Payments & Restaking| Validator(Restaked Validator Pool)
 ```  
 
 ### 🏗 **Tech Stack**  
 | Layer      | Tech Used |
 |------------|----------|
-| **Frontend** | React + HashConnect |
+| **Frontend** | React + Swellchain SDK |
 | **Backend** | Django + PostgreSQL |
-| **Blockchain** | Hedera Smart Contracts |
-| **Storage** | AbstraNet Node Software |
+| **Blockchain** | Swellchain Smart Contracts |
+| **Storage** | IPFS + AbstraNet Node Software |
 
 ---
 
-## 📥 **Getting Started**  
 
-### 🔹 **1. Clone the Repository**  
-```sh
-git clone https://github.com/AbstraNet/AbstraNet.git
-cd AbstraNet
-```
-
-### 🔹 **2. Install Dependencies**  
-#### 📌 Backend (Django)  
-```sh
-cd backend
-pip install -r requirements.txt
-python manage.py migrate
-python manage.py runserver
-```
-#### 📌 Frontend (React)  
-```sh
-cd frontend
-npm install
-npm run dev
-```
-#### 📌 Node Software  
-```sh
-cd node
-npm install
-node index.js
-```
-
-### 🔹 **3. Deploy Smart Contracts (Hedera Testnet)**  
-```sh
-npx hardhat run scripts/deploy.js --network testnet
-```
-
----
-
-## 💰 **Node Operator Earnings**  
-🔹 **Earn HBAR tokens** by **storing chunks & serving content**  
-🔹 **Payments are automated** using **Hedera smart contracts**  
-🔹 **Node uptime is tracked** to prevent fraud  
+## 💰 **Node Operator & Validator Earnings**  
+🔹 **Earn SWELL tokens** by **storing data & serving content**  
+🔹 **Staking validators earn additional rewards** via **Proof of Restake**  
+🔹 **Payments & rewards automated** through **Swellchain smart contracts**  
 
 ---
 
@@ -112,13 +75,14 @@ npx hardhat run scripts/deploy.js --network testnet
 |----------|---------|
 | **Storage & Retrieval Contract** | Tracks file chunks, verifies integrity, and rewards nodes. |
 | **Content Payment Contract** | Handles micropayments for file access and delivery. |
+| **Restaking & Validator Pool Contract** | Manages staked assets, validator tracking, and yield generation. |
 
 ---
 
 ## 🚀 **Roadmap**  
 ✅ **Phase 1: Testnet Deployment** (Current)  
-⏳ **Phase 2: Mainnet Launch & Governance**  
-🔜 **Phase 3: Scaling & AI Optimizations**  
+⏳ **Phase 2: Mainnet Launch & Validator Incentives**  
+🔜 **Phase 3: AI Compute, DeFi Lending & Advanced Staking**  
 
 ---
 
@@ -140,3 +104,4 @@ We welcome contributors!
 📜 **License**: [MIT](LICENSE)  
 
 ---
+
